@@ -5,7 +5,12 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// Configurar CORS para permitir tu frontend
+app.use(cors({
+    origin: 'http://localhost:3000', // o el puerto donde corre tu React
+    credentials: true
+}));
+
 app.use(express.json());
 
 // Importar rutas
@@ -14,17 +19,17 @@ const productosRouter = require('./Routers/productos');
 const usuariosRouter = require('./Routers/usuarios');
 
 // Usar rutas
-app.use('/categorias', categoriasRouter);
-app.use('/productos', productosRouter);
-app.use('/usuarios', usuariosRouter);
+app.use('/api/categorias', categoriasRouter);  // Agregar /api
+app.use('/api/productos', productosRouter);    // Agregar /api  
+app.use('/api/usuarios', usuariosRouter);      // Agregar /api
 
 app.get('/', (req, res) => {
     res.json({ 
         message: 'API de TejidosMiki funcionando',
         rutas: {
-            categorias: '/categorias',
-            productos: '/productos',
-            usuarios: '/usuarios'
+            categorias: '/api/categorias',
+            productos: '/api/productos',
+            usuarios: '/api/usuarios'
         }
     });
 });
@@ -35,5 +40,5 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
 });
