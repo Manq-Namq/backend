@@ -94,43 +94,6 @@ router.post('/login', function (req, res, next) {
             res.status(500).send("Ocurrió un error");
         });
 });
-// POST - Registrar usuario
-router.post('/register', function (req, res, next) {
-    const { nombre, apellido, email, password, telefono, direccion } = req.body;
-    
-    if (!nombre || !email || !password) {
-        return res.status(400).send("Nombre, email y password son requeridos");
-    }
-
-    // Para verificar si el usuario ya existe
-    const checkSql = "SELECT id_usuario FROM usuarios WHERE email = ?";
-    db.query(checkSql, [email])
-        .then(([existingUsers]) => {
-            if (existingUsers.length > 0) {
-                throw new Error('El usuario ya existe');
-            }
-            
-            // Insertar nuevo usuario
-            const insertSql = "INSERT INTO usuarios (nombre, apellido, email, password, telefono, direccion, fecha_registro, id_rol) VALUES (?, ?, ?, ?, ?, ?, CURDATE(), 2)";
-            return db.query(insertSql, [nombre, apellido, email, password, telefono, direccion]);
-        })
-        .then(([result]) => {
-            res.json({
-                status: 'ok',
-                id: result.insertId,
-                mensaje: 'Usuario registrado exitosamente'
-            });
-        })
-        .catch((error) => {
-            console.error(error);
-            if (error.message === 'El usuario ya existe') {
-                res.status(400).send(error.message);
-            } else {
-                res.status(500).send("Ocurrió un error");
-            }
-        });
-});
-
 // PUT - Actualizar usuario
 router.put('/:id', function (req, res, next) {
     const { id } = req.params;

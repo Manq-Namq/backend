@@ -19,14 +19,6 @@ app.use('/api/usuarios', usuariosRouter);
 app.use('/api/productos', productosRouter);
 app.use('/api/categorias', categoriasRouter);
 
-// Ruta de prueba
-app.get('/api/test', (req, res) => {
-    res.json({ 
-        message: 'Backend de TejidosMiki funcionando',
-        timestamp: new Date().toISOString()
-    });
-});
-
 app.get('/', (req, res) => {
     res.json({
         status: 'ok',
