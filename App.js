@@ -13,11 +13,15 @@ app.use(express.json());
 const usuariosRouter = require('./usuarios/main');
 const productosRouter = require('./Productos/mainProductos');
 const categoriasRouter = require('./Categorias/mainCategorias');
+const enviosRouter = require('./Envios/mainEnvios');
+
+
 
 // Usar rutas
 app.use('/usuarios', usuariosRouter);
 app.use('/api/productos', productosRouter);
 app.use('/api/categorias', categoriasRouter);
+app.use('/api/envios', enviosRouter);
 
 // ruta test
 app.get('/api/test', (req, res) => {
