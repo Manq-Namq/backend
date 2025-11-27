@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const db = require('../conexion');
 
+
+
 // GET /productos - Obtener todos los productos
 router.get('/', function(req, res, next) {
   const sql = "SELECT id_producto, nombre, descripcion, precio, stock, imagen_url FROM productos";
@@ -13,6 +15,7 @@ router.get('/', function(req, res, next) {
       console.error(error);
       res.status(500).json({ error: "Error del servidor" });
     });
+    
 });
 // POST /productos - Crear un nuevo producto
 router.post('/', function(req, res, next) {
