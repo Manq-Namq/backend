@@ -1,79 +1,83 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const conexion = require("../conexion");
+const db = require('../conexion'); 
 
-// Obtener todos los envíos
-router.get("/", (req, res) => {
-  const sql = "SELECT * FROM envios";
-
-  conexion.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error obteniendo envíos:", err);
-      return res.status(500).json({ error: "Error al obtener envíos" });
+// GET - Obtener todos los envíos
+router.get('/', async (req, res) => {
+    try {
+        const [rows] = await db.query("SELECT * FROM envios ORDER BY id_envio DESC");
+        res.json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error cargando envíos" });
     }
-    res.json(results);
-  });
 });
 
-// Crear un nuevo envío
-router.post("/", (req, res) => {
-  const { id_usuario, direccion, ciudad, codigo_postal, estado } = req.body;
+// POST - Crear envío
+router.post('/', async (req, res) => {
+    const { id_usuario, direccion, estado, ciudad, codigo_postal } = req.body;
 
-  const sql = `
-    INSERT INTO envios (id_usuario, direccion, ciudad, codigo_postal, estado)
-    VALUES (?, ?, ?, ?, ?)
-  `;
+    try {
+        const sql = `
+            INSERT INTO envios (id_usuario, direccion, estado, ciudad, codigo_postal, fecha)
+            VALUES (?, ?, ?, ?, ?, NOW())
+        `;
 
-  conexion.query(
-    sql,
-    [id_usuario, direccion, ciudad, codigo_postal, estado],
-    (err, result) => {
-      if (err) {
-        console.error("Error creando envío:", err);
-        return res.status(500).json({ error: "Error al crear envío" });
-      }
-      res.json({ message: "Envío creado", id_envio: result.insertId });
+        const [result] = await db.query(sql, [
+            id_usuario,
+            direccion,
+            estado,
+            ciudad,
+            codigo_postal
+        ]);
+
+        res.json({ mensaje: "Envío creado", id_envio: result.insertId });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error creando envío" });
     }
-  );
 });
 
-// Actualizar un envío
-router.put("/:id", (req, res) => {
-  const { id } = req.params;
-  const { direccion, ciudad, codigo_postal, estado } = req.body;
+// PUT - Editar envío
+router.put('/:id', async (req, res) => {
+    const { id } = req.params;
+    const { direccion, estado, ciudad, codigo_postal } = req.body;
 
-  const sql = `
-    UPDATE envios 
-    SET direccion = ?, ciudad = ?, codigo_postal = ?, estado = ?
-    WHERE id_envio = ?
-  `;
+    try {
+        const sql = `
+            UPDATE envios 
+            SET direccion = ?, estado = ?, ciudad = ?, codigo_postal = ?
+            WHERE id_envio = ?
+        `;
 
-  conexion.query(
-    sql,
-    [direccion, ciudad, codigo_postal, estado, id],
-    (err, result) => {
-      if (err) {
-        console.error("Error actualizando envío:", err);
-        return res.status(500).json({ error: "Error al actualizar envío" });
-      }
-      res.json({ message: "Envío actualizado" });
+        await db.query(sql, [
+            direccion,
+            estado,
+            ciudad,
+            codigo_postal,
+            id
+        ]);
+
+        res.json({ mensaje: "Envío actualizado" });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error actualizando envío" });
     }
-  );
 });
 
-// Eliminar un envío
-router.delete("/:id", (req, res) => {
-  const { id } = req.params;
+// DELETE - Eliminar envío
+router.delete('/:id', async (req, res) => {
+    const { id } = req.params;
 
-  const sql = "DELETE FROM envios WHERE id_envio = ?";
-
-  conexion.query(sql, [id], (err, result) => {
-    if (err) {
-      console.error("Error eliminando envío:", err);
-      return res.status(500).json({ error: "Error al eliminar envío" });
+    try {
+        await db.query("DELETE FROM envios WHERE id_envio = ?", [id]);
+        res.json({ mensaje: "Envío eliminado" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error eliminando envío" });
     }
-    res.json({ message: "Envío eliminado" });
-  });
 });
 
 module.exports = router;

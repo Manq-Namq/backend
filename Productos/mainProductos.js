@@ -1,8 +1,6 @@
 const router = require('express').Router();
 const db = require('../conexion');
 
-
-
 // GET /productos - Obtener todos los productos
 router.get('/', function(req, res, next) {
   const sql = "SELECT id_producto, nombre, descripcion, precio, stock, imagen_url FROM productos";

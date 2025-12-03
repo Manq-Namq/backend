@@ -14,6 +14,7 @@ const usuariosRouter = require('./usuarios/main');
 const productosRouter = require('./Productos/mainProductos');
 const categoriasRouter = require('./Categorias/mainCategorias');
 const enviosRouter = require('./Envios/mainEnvios');
+const ventasRouter = require('./Ventas/mainVentas');
 
 
 
@@ -22,6 +23,7 @@ app.use('/usuarios', usuariosRouter);
 app.use('/api/productos', productosRouter);
 app.use('/api/categorias', categoriasRouter);
 app.use('/api/envios', enviosRouter);
+app.use('api/ventas', ventasRouter);
 
 // ruta test
 app.get('/api/test', (req, res) => {
@@ -41,3 +43,4 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor en http://localhost:${PORT}`);
 });
+

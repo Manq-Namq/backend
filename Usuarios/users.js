@@ -1,4 +1,3 @@
-// Backend/usuarios/users.js
 const router = require('express').Router();
 const db = require('../conexion');
 
