@@ -10,11 +10,14 @@ app.use(cors());
 app.use(express.json());
 
 // Importar rutas
-const usuariosRouter = require('./usuarios/main');
+const usuariosRouter = require('./Usuarios/main');
 const productosRouter = require('./Productos/mainProductos');
 const categoriasRouter = require('./Categorias/mainCategorias');
 const enviosRouter = require('./Envios/mainEnvios');
 const ventasRouter = require('./Ventas/mainVentas');
+const comprasRouter = require('./Compras/mainCompras');
+const pagosRouter = require('./Pagos/mainPagos');
+const carritosRouter = require('./carritos/mainCarritos');
 
 
 
@@ -23,7 +26,10 @@ app.use('/usuarios', usuariosRouter);
 app.use('/api/productos', productosRouter);
 app.use('/api/categorias', categoriasRouter);
 app.use('/api/envios', enviosRouter);
-app.use('api/ventas', ventasRouter);
+app.use('/api/ventas', ventasRouter);
+app.use('/api/compras',comprasRouter)
+app.use('/api/pagos', pagosRouter)
+app.use('/api/carritos', carritosRouter);   
 
 // ruta test
 app.get('/api/test', (req, res) => {

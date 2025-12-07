@@ -2,130 +2,92 @@ const express = require('express');
 const router = express.Router();
 const db = require('../conexion');
 
-// GET - Obtener todas las ventas (usando compra_productos)
-router.get('/', function(req, res, next) {
+// GET - TODAS las ventas (para la tabla)
+router.get('/', (req, res) => {
   const sql = `
     SELECT 
-      cp.id_compra_productos,
+      v.id_venta,
+      DATE_FORMAT(v.fecha_venta, '%d/%m/%Y %H:%i') as fecha_venta,
+      IFNULL(v.estado, 'completada') as estado,
       cp.cantidad,
       cp.precio_unitario,
-      cp.id_carrito,
-      p.nombre as producto_nombre,
-      p.descripcion,
-      u.nombre as usuario_nombre,
-      u.apellido as usuario_apellido,
-      u.email,
-      c.fecha_creacion as fecha_compra
-    FROM compra_productos cp
-    JOIN productos p ON cp.id_producto = p.id_producto
-    JOIN carrito c ON cp.id_carrito = c.id_carrito
-    JOIN usuarios u ON c.id_usuario = u.id_usuario
-    ORDER BY c.fecha_creacion DESC
+      (cp.cantidad * cp.precio_unitario) as total,
+      IFNULL(p.nombre, 'Producto') as producto_nombre,
+      IFNULL(u.nombre, 'Usuario') as usuario_nombre,
+      IFNULL(u.apellido, '') as usuario_apellido
+    FROM ventas v
+    JOIN compra_productos cp ON v.id_compra_productos = cp.id_compra_productos
+    LEFT JOIN productos p ON cp.id_producto = p.id_producto
+    LEFT JOIN usuarios u ON v.id_usuario = u.id_usuario
+    ORDER BY v.fecha_venta DESC
   `;
   
   db.query(sql)
     .then(([ventas]) => {
+      console.log(`Ventas obtenidas: ${ventas.length} registros`);
+      console.log(ventas); // Para ver qué datos llegan
       res.json(ventas);
     })
     .catch((error) => {
-      console.error(error);
-      res.status(500).json({ error: "Error del servidor" });
+      console.error('Error:', error);
+      res.status(500).json({ error: "Error al obtener ventas" });
     });
 });
 
-// GET - Ventas de hoy
-router.get('/hoy', function(req, res, next) {
+// GET - Ventas de HOY (NUEVA RUTA)
+router.get('/hoy', (req, res) => {
   const sql = `
-    SELECT 
-      COUNT(cp.id_compra_productos) as total_ventas,
-      SUM(cp.cantidad * cp.precio_unitario) as monto_total
-    FROM compra_productos cp
-    JOIN carrito c ON cp.id_carrito = c.id_carrito
-    WHERE DATE(c.fecha_creacion) = CURDATE()
+    SELECT COUNT(*) as total_ventas 
+    FROM ventas 
+    WHERE DATE(fecha_venta) = CURDATE()
   `;
   
   db.query(sql)
     .then(([result]) => {
-      res.json({
-        total_ventas: result[0].total_ventas || 0,
-        monto_total: result[0].monto_total || 0
-      });
+      const total = result[0].total_ventas || 0;
+      console.log(`Ventas hoy (${new Date().toLocaleDateString()}): ${total}`);
+      res.json({ total_ventas: total });
     })
     .catch((error) => {
-      console.error(error);
-      res.status(500).json({ error: "Error del servidor" });
+      console.error('Error:', error);
+      res.status(500).json({ error: "Error al obtener ventas de hoy" });
     });
 });
 
-// GET - Ventas del mes actual
-router.get('/mes', function(req, res, next) {
+// GET - Ventas del MES
+router.get('/mes', (req, res) => {
   const sql = `
-    SELECT 
-      COUNT(cp.id_compra_productos) as total_ventas,
-      SUM(cp.cantidad * cp.precio_unitario) as monto_total
-    FROM compra_productos cp
-    JOIN carrito c ON cp.id_carrito = c.id_carrito
-    WHERE MONTH(c.fecha_creacion) = MONTH(CURDATE()) 
-    AND YEAR(c.fecha_creacion) = YEAR(CURDATE())
+    SELECT COUNT(*) as total_ventas 
+    FROM ventas 
+    WHERE MONTH(fecha_venta) = MONTH(CURDATE()) 
+      AND YEAR(fecha_venta) = YEAR(CURDATE())
   `;
   
   db.query(sql)
     .then(([result]) => {
-      res.json({
-        total_ventas: result[0].total_ventas || 0,
-        monto_total: result[0].monto_total || 0
-      });
+      const total = result[0].total_ventas || 0;
+      console.log(` Ventas mes: ${total}`);
+      res.json({ total_ventas: total });
     })
     .catch((error) => {
-      console.error(error);
-      res.status(500).json({ error: "Error del servidor" });
+      console.error('Error:', error);
+      res.status(500).json({ error: "Error al obtener ventas del mes" });
     });
 });
 
-// GET - Obtener ventas pendientes (si tienes columna estado en carrito)
-router.get('/pendientes', function(req, res, next) {
-  const sql = `
-    SELECT COUNT(cp.id_compra_productos) as total_pendientes
-    FROM compra_productos cp
-    JOIN carrito c ON cp.id_carrito = c.id_carrito
-    WHERE c.estado = 'pendiente' OR c.estado IS NULL
-  `;
+// DELETE - Eliminar venta
+router.delete('/:id', (req, res) => {
+  const ventaId = req.params.id;
   
-  db.query(sql)
-    .then(([result]) => {
-      res.json({
-        total_pendientes: result[0].total_pendientes || 0
-      });
+  const sql = `DELETE FROM ventas WHERE id_venta = ?`;
+  
+  db.query(sql, [ventaId])
+    .then(() => {
+      res.json({ mensaje: 'Venta eliminada' });
     })
     .catch((error) => {
-      console.error(error);
-      res.status(500).json({ error: "Error del servidor" });
-    });
-});
-
-// GET - Estadísticas generales
-router.get('/estadisticas', function(req, res, next) {
-  const sql = `
-    SELECT 
-      COUNT(cp.id_compra_productos) as total_ventas,
-      SUM(cp.cantidad) as total_productos_vendidos,
-      SUM(cp.cantidad * cp.precio_unitario) as ingreso_total,
-      AVG(cp.cantidad * cp.precio_unitario) as promedio_venta,
-      DATE(c.fecha_creacion) as fecha
-    FROM compra_productos cp
-    JOIN carrito c ON cp.id_carrito = c.id_carrito
-    GROUP BY DATE(c.fecha_creacion)
-    ORDER BY fecha DESC
-    LIMIT 7
-  `;
-  
-  db.query(sql)
-    .then(([estadisticas]) => {
-      res.json(estadisticas);
-    })
-    .catch((error) => {
-      console.error(error);
-      res.status(500).json({ error: "Error del servidor" });
+      console.error('Error:', error);
+      res.status(500).json({ error: "Error al eliminar venta" });
     });
 });
 
