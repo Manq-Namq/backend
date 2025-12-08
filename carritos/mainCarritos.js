@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../conexion');
 
-// GET - TODOS los carritos
+// GET, todos los carritos
 router.get('/', (req, res) => {
   const sql = `
     SELECT 
@@ -28,7 +28,7 @@ router.get('/', (req, res) => {
     });
 });
 
-// POST - Crear carrito
+// POST, Crear carrito
 router.post('/', (req, res) => {
   const { id_usuario } = req.body;
   
@@ -48,5 +48,25 @@ router.post('/', (req, res) => {
       res.status(500).json({ error: "Error al crear carrito" });
     });
 });
-
+// PUT, Actualizar estado de carrito
+router.put('/:id', (req, res) => {
+  const idCarrito = req.params.id;
+  const { estado } = req.body;
+  
+  console.log('Actualizando carrito', idCarrito, 'a estado:', estado);
+  
+  const sql = `UPDATE carritos SET estado = ? WHERE id_carrito = ?`;
+  
+  db.query(sql, [estado, idCarrito])
+    .then(() => {
+      res.json({ 
+        mensaje: 'Estado del carrito actualizado',
+        estado: estado
+      });
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+      res.status(500).json({ error: "Error al actualizar carrito" });
+    });
+});
 module.exports = router;
