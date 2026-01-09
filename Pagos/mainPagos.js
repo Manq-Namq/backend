@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../conexion');
 
-// POST - Crear pago (FALTA ESTA RUTA)
+// POST, Crear pago 
 router.post('/', (req, res) => {
   const { id_carrito, monto, metodo } = req.body;
   
@@ -23,7 +23,7 @@ router.post('/', (req, res) => {
     });
 });
 
-// GET - TODOS los pagos
+// GET todos los pagos
 router.get('/', (req, res) => {
   const sql = `
     SELECT 
@@ -52,7 +52,6 @@ router.get('/', (req, res) => {
     });
 });
 
-// PUT - Actualizar estado de pago y crear venta automáticamente
 router.put('/:id', (req, res) => {
   const idPago = req.params.id;
   const { estado } = req.body;
@@ -87,10 +86,24 @@ router.put('/:id', (req, res) => {
         return db.query(sqlVenta, [idPago])
           .then(([result]) => {
             console.log('Venta creada con ID:', result.insertId);
-            res.json({ 
-              mensaje: 'Pago aprobado y venta creada',
-              venta_creada: true 
-            });
+            
+            // NUEVO: Actualizar estado del carrito a 'completado'
+            const sqlUpdateCarrito = `
+              UPDATE carritos 
+              SET estado = 'completado' 
+              WHERE id_carrito = (
+                SELECT id_carrito FROM pagos WHERE id_pago = ?
+              )
+            `;
+            
+            return db.query(sqlUpdateCarrito, [idPago])
+              .then(() => {
+                console.log('Carrito actualizado a completado');
+                res.json({ 
+                  mensaje: 'Pago aprobado, venta creada y carrito completado',
+                  venta_creada: true 
+                });
+              });
           });
       }
       
@@ -104,7 +117,7 @@ router.put('/:id', (req, res) => {
       res.status(500).json({ error: "Error al actualizar pago" });
     });
 });
-// DELETE - Eliminar pago
+// DELETE, Eliminar pago
 router.delete('/:id', (req, res) => {
   const pagoId = req.params.id;
   
