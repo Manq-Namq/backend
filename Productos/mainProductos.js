@@ -43,10 +43,6 @@ router.get('/', function(req, res, next) {
       console.error("Error en GET /:", error);
       res.status(500).json({ error: "Error del servidor" });
     });
-<<<<<<< HEAD
-
-=======
->>>>>>> develop_orosco
 });
 
 // Ruta para obtener imagen 
