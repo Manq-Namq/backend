@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../conexion'); // <-- ajusta si tu archivo se llama distinto
+const db = require('../conexion'); 
 
 // GET - Obtener todos los envíos
 router.get('/', async (req, res) => {
