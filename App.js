@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(fileUpload());
 
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads", )));
 
 //Crear capeta uploads si no existe
 const uploadsDir = path.join(__dirname, 'uploads');

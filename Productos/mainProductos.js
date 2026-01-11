@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require("fs");
 
 // Directorio para imágenes 
-const directorio = path.join(__dirname, "..", "uploads");
+const directorio = path.join(__dirname, "..", "uploads", "productos");
 
 // Verificar que el directorio existe
 if (!fs.existsSync(directorio)) {
@@ -184,5 +184,42 @@ router.delete('/:id', function(req, res, next) {
     res.status(500).json({ error: "Error del servidor" });
   });
 });
-
+//PUT ctualizar producto stock
+router.put('/:id', function(req, res, next) {
+  const { id } = req.params;
+  const { nombre, descripcion, precio, stock } = req.body;
+  
+  // Validar que el stock no sea negativo
+  if (stock < 0) {
+    return res.status(400).json({ error: "El stock no puede ser negativo" });
+  }
+});
+// Verificar stock del producto debug
+router.get('/verificar/:id', function(req, res, next) {
+  const { id } = req.params;
+  
+  const sql = `
+    SELECT id_producto, nombre, stock 
+    FROM productos 
+    WHERE id_producto = ?
+  `;
+  
+  db.query(sql, [id])
+    .then(([productos]) => {
+      if (productos.length === 0) {
+        return res.status(404).json({ error: "Producto no encontrado" });
+      }
+      
+      console.log('Verificación de stock:');
+      console.log('ID:', productos[0].id_producto);
+      console.log('Nombre:', productos[0].nombre);
+      console.log('Stock:', productos[0].stock);
+      
+      res.json(productos[0]);
+    })
+    .catch((error) => {
+      console.error("Error en verificación:", error);
+      res.status(500).json({ error: "Error del servidor" });
+    });
+});
 module.exports = router;
