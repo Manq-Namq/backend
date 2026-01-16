@@ -59,7 +59,7 @@ router.get("/imagen/:nombre", function(req, res, next){
   res.sendFile(filepath);
 });
 
-// POST /productos  Crear producto con imagen (COMO EN TU EJEMPLO)
+// POST /productos  Crear producto con imagen 
 router.post('/', function(req, res, next) {
   console.log("Recibiendo solicitud POST /productos");
   
@@ -71,7 +71,7 @@ router.post('/', function(req, res, next) {
   const imagen = req.files.imagen;
   console.log("Archivo recibido:", imagen.name);
   
-  // Validar extensión (IGUAL QUE EN TU EJEMPLO)
+  // Validar extensión 
   const extension = path.extname(imagen.name);
   
   if (extension !== ".jpg" && extension !== ".jpeg" && extension !== ".png") {
@@ -81,7 +81,7 @@ router.post('/', function(req, res, next) {
 
   const filepath = path.join(directorio, imagen.name);
 
-  // Mover imagen (IGUAL QUE EN TU EJEMPLO)
+  // Mover imagen 
   imagen.mv(filepath, function(error){ 
     if (error) {
       console.error(error);
