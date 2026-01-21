@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const db = require('../conexion');
+const middleware = require('../middleware');
 
 // GET /usuarios - Obtener todos los usuarios (para admin)
 router.get('/', function(req, res, next) {
@@ -15,9 +16,17 @@ router.get('/', function(req, res, next) {
     });
 });
 
-// GET /usuarios/:id - Obtener usuario específico
-router.get('/:id', function(req, res, next) {
+// GET /usuarios/:id - Obtener usuario específico (solo el usuario autenticado puede ver su perfil)
+router.get('/:id', middleware, function(req, res, next) {
   const { id } = req.params;
+  const userId = req.user?.id_usuario; // Obtener del middleware de autenticación
+  const userRole = req.user?.id_rol; // Obtener rol del usuario
+  
+  // Permitir acceso si es admin O si es su propio perfil
+  if (Number(id) !== Number(userId) && userRole !== 1) {
+    return res.status(403).json({ error: "No tienes permiso para acceder a este perfil" });
+  }
+  
   const sql = "SELECT id_usuario, nombre, apellido, email, telefono, direccion, fecha_registro, id_rol FROM usuarios WHERE id_usuario = ?";
   
   db.query(sql, [id])
@@ -34,9 +43,17 @@ router.get('/:id', function(req, res, next) {
     });
 });
 
-// PUT /usuarios/:id - Actualizar usuario
-router.put('/:id', function(req, res, next) {
+// PUT /usuarios/:id - Actualizar usuario (solo el usuario autenticado puede actualizar su perfil)
+router.put('/:id', middleware, function(req, res, next) {
   const { id } = req.params;
+  const userId = req.user?.id_usuario; // Obtener del middleware de autenticación
+  const userRole = req.user?.id_rol; // Obtener rol del usuario
+  
+  // Permitir actualización si es admin O si es su propio perfil
+  if (Number(id) !== Number(userId) && userRole !== 1) {
+    return res.status(403).json({ error: "No tienes permiso para actualizar este perfil" });
+  }
+  
   const { nombre, apellido, email, telefono, direccion } = req.body;
   
   const sql = "UPDATE usuarios SET nombre = ?, apellido = ?, email = ?, telefono = ?, direccion = ? WHERE id_usuario = ?";
@@ -51,9 +68,17 @@ router.put('/:id', function(req, res, next) {
     });
 });
 
-// DELETE /usuarios/:id - Eliminar usuario
-router.delete('/:id', function(req, res, next) {
+// DELETE /usuarios/:id - Eliminar usuario (solo el usuario autenticado puede eliminar su perfil o admin)
+router.delete('/:id', middleware, function(req, res, next) {
   const { id } = req.params;
+  const userId = req.user?.id_usuario; // Obtener del middleware de autenticación
+  const userRole = req.user?.id_rol; // Obtener rol del usuario
+  
+  // Permitir eliminación si es admin O si es su propio perfil
+  if (Number(id) !== Number(userId) && userRole !== 1) {
+    return res.status(403).json({ error: "No tienes permiso para eliminar este perfil" });
+  }
+  
   const sql = "DELETE FROM usuarios WHERE id_usuario = ?";
   
   db.query(sql, [id])

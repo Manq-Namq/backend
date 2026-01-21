@@ -14,6 +14,8 @@ app.use(express.json());
 
 app.use(fileUpload());
 
+// Importar middleware de autenticación
+const middleware = require('./middleware');
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
