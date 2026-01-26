@@ -1,7 +1,7 @@
 // Backend/usuarios/auth.js
 const router = require('express').Router();
 const db = require('../conexion');
-const { generarToken } = require('@damianegreco/hashpass');
+const { generarToken, verificarToken } = require('@damianegreco/hashpass');
 
 const { TOKEN_SECRET } = process.env;
 
@@ -23,6 +23,14 @@ router.post('/login', function(req, res, next) {
           apellido: usuario.apellido,
           email: usuario.email,
           rol: usuario.id_rol
+        });
+
+        // Guardar token en cookie HttpOnly (segura, no accesible desde JS)
+        res.cookie('token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 4 * 60 * 60 * 1000 // 4 horas
         });
 
         res.json({
@@ -81,6 +89,14 @@ router.post('/register', function(req, res, next) {
         rol: usuario.id_rol
       });
 
+      // Guardar token en cookie HttpOnly
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 4 * 60 * 60 * 1000 // 4 horas
+      });
+
       res.json({
         token: token,
         usuario: usuario,
@@ -95,6 +111,37 @@ router.post('/register', function(req, res, next) {
         res.status(500).send("Ocurrió un error");
       }
     });
+});
+
+// GET /usuarios/me - Verificar sesión actual
+router.get('/me', function(req, res, next) {
+  const token = req.cookies.token || req.headers.authorization;
+
+  if (!token) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
+
+  const verificacion = verificarToken(token, TOKEN_SECRET);
+
+  if (verificacion?.data) {
+    const usuario = {
+      id_usuario: verificacion.data.id,
+      nombre: verificacion.data.nombre,
+      apellido: verificacion.data.apellido,
+      email: verificacion.data.email,
+      id_rol: verificacion.data.rol
+    };
+    
+    res.json({ usuario, token });
+  } else {
+    res.status(401).json({ error: "Token inválido o expirado" });
+  }
+});
+
+// POST /usuarios/logout
+router.post('/logout', function(req, res, next) {
+  res.clearCookie('token');
+  res.json({ mensaje: 'Sesión cerrada' });
 });
 
 module.exports = router;
