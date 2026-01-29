@@ -2,10 +2,6 @@ const express = require('express');
 const path = require("path");
 const cors = require('cors');
 const fs = require('fs');
-
-const cookieParser = require('cookie-parser');
-const cookieParser = require('cookie-parser');
-
 require('dotenv').config();
 
 const fileUpload = require("express-fileupload");
@@ -13,35 +9,15 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 //Middleware
-app.use(cors({
-  origin: 'http://localhost:5173', // tu URL del frontend
-  credentials: true // permite el envío de cookies
-}));
-app.use(express.json());
-app.use(cookieParser()); // Middleware para parsear cookies
 app.use(cors());
 app.use(express.json());
-
-
-app.use(cors({
-  origin: 'http://localhost:5173', // tu URL del frontend
-  credentials: true // permite el envío de cookies
-}));
-app.use(express.json());
-app.use(cookieParser()); // Middleware para parsear cookies
 
 app.use(fileUpload());
 
 // Importar middleware de autenticación
 const middleware = require('./middleware');
 
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 app.use("/uploads", express.static(path.join(__dirname, "uploads", )));
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 
 //Crear capeta uploads si no existe
 const uploadsDir = path.join(__dirname, 'uploads');
