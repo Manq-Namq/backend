@@ -47,6 +47,7 @@ app.use('/api/compras', comprasRouter);
 app.use('/api/pagos', pagosRouter);
 app.use('/api/carritos', carritosRouter);
 
+
 // Ruta de prueba
 app.get('/api/test', (req, res) => {
     res.json({ 

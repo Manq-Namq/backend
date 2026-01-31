@@ -54,11 +54,11 @@ router.put('/:id', middleware, function(req, res, next) {
     return res.status(403).json({ error: "No tienes permiso para actualizar este perfil" });
   }
   
-  const { nombre, apellido, email, telefono, direccion } = req.body;
-  
-  const sql = "UPDATE usuarios SET nombre = ?, apellido = ?, email = ?, telefono = ?, direccion = ? WHERE id_usuario = ?";
-  
-  db.query(sql, [nombre, apellido, email, telefono, direccion, id])
+  const { nombre, apellido, email, telefono, direccion, id_rol } = req.body;
+
+  const sql = "UPDATE usuarios SET nombre = ?, apellido = ?, email = ?, telefono = ?, direccion = ?, id_rol = ? WHERE id_usuario = ?";
+
+  db.query(sql, [nombre, apellido, email, telefono, direccion, id_rol, id])
     .then(() => {
       res.json({ mensaje: "Usuario actualizado correctamente" });
     })

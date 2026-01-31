@@ -17,7 +17,8 @@ router.post('/login', function(req, res, next) {
       const usuario = usuarios[0];
       
       if (password === usuario.password) {
-        const token = generarToken(TOKEN_SECRET, 4, { 
+        // CAMBIA ESTO: de 4 a 24 horas (o más)
+        const token = generarToken(TOKEN_SECRET, 24, { // 24 horas en lugar de 4
           id: usuario.id_usuario, 
           nombre: usuario.nombre, 
           apellido: usuario.apellido,
