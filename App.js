@@ -8,6 +8,9 @@ const fileUpload = require("express-fileupload");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Importar conexión a base de datos
+const db = require('./conexion');
+
 //Middleware
 app.use(cors());
 app.use(express.json());
@@ -47,42 +50,44 @@ app.use('/api/compras', comprasRouter);
 app.use('/api/pagos', pagosRouter);
 app.use('/api/carritos', carritosRouter);
 
-// Ruta de prueba
-app.get('/api/test', (req, res) => {
-    res.json({ 
-        message: 'Backend de TejidosMiki funcionando',
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Ruta raíz
-app.get('/', function(req, res, next){
-  res.json({
-    status: 'ok',
-    message: 'Bienvenido a la API de TejidosMiki'
-  });
-});
-
-// Ruta para listar archivos en uploads (solo para desarrollo)
-app.get('/uploads/', (req, res) => {
-    fs.readdir(uploadsDir, (err, files) => {
-        if (err) {
-            return res.status(500).json({ error: 'Error al leer la carpeta uploads' });
-        }
-        res.json({ 
-            message: 'Contenido de la carpeta uploads',
-            archivos: files,
-            total: files.length
-        });
-    });
-});
-
-app.listen(PORT, function(error) {
-  if (error){
-    console.error(error);
-    process.exit(1);
+// Crear tabla de comentarios si no existe
+const crearTablaComentarios = async () => {
+  const dropSql = `DROP TABLE IF EXISTS comentarios`;
+  const createSql = `
+    CREATE TABLE comentarios (
+      id_comentario INT AUTO_INCREMENT PRIMARY KEY,
+      id_usuario INT NOT NULL,
+      id_producto INT NOT NULL,
+      comentario TEXT NOT NULL,
+      puntuacion INT NOT NULL,
+      fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+      FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE
+    )
+  `;
+  
+  try {
+    await db.query(dropSql);
+    await db.query(createSql);
+    console.log('Tabla comentarios creada correctamente');
+  } catch (error) {
+    console.error('Error al crear tabla comentarios:', error);
   }
-  console.log(`Escuchando en el puerto ${PORT}`);
-  console.log(`Carpeta uploads: ${uploadsDir}`);
-  console.log(`Acceso a uploads: http://localhost:${PORT}/uploads/`);
-});
+};
+
+// Inicializar base de datos y luego iniciar servidor
+const iniciarServidor = async () => {
+  await crearTablaComentarios();
+  
+  app.listen(PORT, function(error) {
+    if (error){
+      console.error(error);
+      process.exit(1);
+    }
+    console.log(`Escuchando en el puerto ${PORT}`);
+    console.log(`Carpeta uploads: ${uploadsDir}`);
+    console.log(`Acceso a uploads: http://localhost:${PORT}/uploads/`);
+  });
+};
+
+iniciarServidor();

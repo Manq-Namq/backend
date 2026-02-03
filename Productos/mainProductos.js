@@ -2,6 +2,7 @@ const router = require('express').Router();
 const db = require('../conexion');
 const path = require('path');
 const fs = require("fs");
+const middleware = require('../middleware');
 
 // Directorio para imágenes 
 const directorio = path.join(__dirname, "..", "uploads");
@@ -183,6 +184,53 @@ router.delete('/:id', function(req, res, next) {
     console.error(error);
     res.status(500).json({ error: "Error del servidor" });
   });
+});
+
+// GET /productos/:id/comentarios - Obtener comentarios de un producto
+router.get('/:id/comentarios', function(req, res, next) {
+  const { id } = req.params;
+  
+  const sql = `
+    SELECT c.id_comentario, c.comentario, c.puntuacion, c.fecha, u.nombre as usuario
+    FROM comentarios c
+    JOIN usuarios u ON c.id_usuario = u.id_usuario
+    WHERE c.id_producto = ?
+    ORDER BY c.fecha DESC
+  `;
+  
+  db.query(sql, [id])
+    .then(([comentarios]) => {
+      res.json(comentarios);
+    })
+    .catch((error) => {
+      console.error("Error en GET /:id/comentarios:", error);
+      res.status(500).json({ error: "Error del servidor" });
+    });
+});
+
+// POST /productos/:id/comentarios - Crear comentario para un producto
+router.post('/:id/comentarios', middleware, function(req, res, next) {
+  const { id } = req.params;
+  const { comentario, puntuacion } = req.body;
+  const id_usuario = req.user.id_usuario;
+  
+  if (!comentario || !puntuacion) {
+    return res.status(400).json({ error: "Comentario y puntuación son requeridos" });
+  }
+  
+  const sql = "INSERT INTO comentarios (id_usuario, id_producto, comentario, puntuacion, fecha) VALUES (?, ?, ?, ?, NOW())";
+  
+  db.query(sql, [id_usuario, id, comentario, puntuacion])
+    .then(([result]) => {
+      res.json({
+        mensaje: "Comentario creado correctamente",
+        id: result.insertId
+      });
+    })
+    .catch((error) => {
+      console.error("Error en POST /:id/comentarios:", error);
+      res.status(500).json({ error: "Error del servidor" });
+    });
 });
 
 module.exports = router;

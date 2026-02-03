@@ -129,4 +129,34 @@ router.post('/', function(req, res, next) {
       }
     });
 });
+
+// GET /usuarios/:id/comentarios - Obtener comentarios de un usuario
+router.get('/:id/comentarios', middleware, function(req, res, next) {
+  const { id } = req.params;
+  const userId = req.user?.id_usuario;
+  const userRole = req.user?.id_rol;
+  
+  // Permitir acceso si es admin O si es su propio perfil
+  if (Number(id) !== Number(userId) && userRole !== 1) {
+    return res.status(403).json({ error: "No tienes permiso para acceder a estos comentarios" });
+  }
+  
+  const sql = `
+    SELECT c.id_comentario, c.comentario, c.puntuacion, c.fecha, p.nombre as producto
+    FROM comentarios c
+    JOIN productos p ON c.id_producto = p.id_producto
+    WHERE c.id_usuario = ?
+    ORDER BY c.fecha DESC
+  `;
+  
+  db.query(sql, [id])
+    .then(([comentarios]) => {
+      res.json(comentarios);
+    })
+    .catch((error) => {
+      console.error("Error en GET /:id/comentarios:", error);
+      res.status(500).json({ error: "Error del servidor" });
+    });
+});
+
 module.exports = router;

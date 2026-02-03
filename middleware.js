@@ -3,11 +3,13 @@ const { verificarToken } = require('@damianegreco/hashpass');
 const { TOKEN_SECRET } = process.env;
 
 function middleware(req, res, next) {
-  const token = req.headers.authorization;
+  const authHeader = req.headers.authorization;
 
-  if (!token) {
-    return res.status(401).send("Sin autorización - Token no proporcionado");
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).send("Sin autorización - Token no proporcionado o formato inválido");
   }
+
+  const token = authHeader.replace('Bearer ', '');
 
   const verificacion = verificarToken(token, TOKEN_SECRET);
 
