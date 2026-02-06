@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../conexion');
 
-// GET TODAS las compras_productos
+// GET  Obtener todas las compras
 router.get('/', (req, res) => {
   const sql = `
     SELECT 
@@ -11,12 +11,11 @@ router.get('/', (req, res) => {
       cp.id_producto,
       cp.cantidad,
       cp.precio_unitario,
-      IFNULL(p.nombre, 'Producto no disponible') as producto_nombre,
-      IFNULL(u.nombre, 'Usuario') as usuario_nombre,
-      IFNULL(u.apellido, '') as usuario_apellido,
-      IFNULL(u.direccion, 'Sin dirección') as direccion_usuario,
-      IFNULL(u.ciudad, 'Sin ciudad') as ciudad_usuario,
-      IFNULL(c.estado, 'sin estado') as estado_carrito,
+      p.nombre as producto_nombre,
+      p.stock as stock_actual,
+      u.nombre as usuario_nombre,
+      u.apellido as usuario_apellido,
+      c.estado as estado_carrito,
       (cp.cantidad * cp.precio_unitario) as total
     FROM compra_productos cp
     LEFT JOIN productos p ON cp.id_producto = p.id_producto
@@ -27,7 +26,7 @@ router.get('/', (req, res) => {
   
   db.query(sql)
     .then(([compras]) => {
-      console.log(` Compras obtenidas: ${compras.length} registros`);
+      console.log(`Compras obtenidas: ${compras.length} registros`);
       res.json(compras);
     })
     .catch((error) => {
@@ -36,54 +35,53 @@ router.get('/', (req, res) => {
     });
 });
 
-// POST  Registrar compra y ENVÍO automáticamente
+// POST  Registra compra con validación de stock
 router.post('/', (req, res) => {
-  const { id_carrito, id_producto, cantidad, precio_unitario, id_usuario } = req.body;
+  const { id_carrito, id_producto, cantidad, precio_unitario } = req.body;
   
-  console.log('Registrando compra y envío:', req.body);
+  console.log('Validando stock para compra...');
   
-  // 1 Primero obtenemos los datos del usuario para el envío
-  const getUsuarioSql = `SELECT nombre, apellido, direccion, ciudad, codigo_postal FROM usuarios WHERE id_usuario = ?`;
+  // Primero verificar stock disponible
+  const checkStockSql = `SELECT stock, nombre FROM productos WHERE id_producto = ?`;
   
-  db.query(getUsuarioSql, [id_usuario])
-    .then(([usuarios]) => {
-      if (usuarios.length === 0) {
-        throw new Error('Usuario no encontrado');
+  db.query(checkStockSql, [id_producto])
+    .then(([productoData]) => {
+      if (productoData.length === 0) {
+        return res.status(404).json({ error: "Producto no encontrado" });
       }
       
-      const usuario = usuarios[0];
+      const stockDisponible = productoData[0].stock;
+      const nombreProducto = productoData[0].nombre;
       
-      // 2 Registrar la compra
-      const compraSql = `INSERT INTO compra_productos (id_carrito, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)`;
+      // Validar que la cantidad no supere el stock
+      if (cantidad > stockDisponible) {
+        const mensaje = `No hay suficiente stock. Producto: "${nombreProducto}". Disponible: ${stockDisponible}, Solicitado: ${cantidad}`;
+        console.log(mensaje);
+        return res.status(400).json({ 
+          error: mensaje,
+          stock_disponible: stockDisponible,
+          cantidad_solicitada: cantidad,
+          producto: nombreProducto
+        });
+      }
       
-      return db.query(compraSql, [id_carrito, id_producto, cantidad, precio_unitario])
+      // Si hay stock suficiente, registrar la compra en el carrito
+      const sql = `INSERT INTO compra_productos (id_carrito, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)`;
+      
+      return db.query(sql, [id_carrito, id_producto, cantidad, precio_unitario])
         .then(([result]) => {
-          const idCompra = result.insertId;
-          
-          // 3 Registrar el envío automáticamente
-          const envioSql = `
-            INSERT INTO envios (id_usuario, id_compra, direccion, estado, ciudad, codigo_postal, fecha)
-            VALUES (?, ?, ?, 'Pendiente', ?, ?, NOW())
-          `;
-          
-          return db.query(envioSql, [
-            id_usuario,
-            idCompra,
-            usuario.direccion || 'Dirección no especificada',
-            usuario.ciudad || 'Ciudad no especificada',
-            usuario.codigo_postal || '0000'
-          ])
-          .then(() => {
-            return { id_compra_productos: idCompra, mensaje: 'Compra y envío registrados' };
+          console.log(`Producto añadido al carrito: ${nombreProducto}, cantidad: ${cantidad}`);
+          res.json({
+            id_compra_productos: result.insertId,
+            mensaje: 'Producto añadido al carrito',
+            producto: nombreProducto,
+            cantidad: cantidad
           });
         });
     })
-    .then((resultado) => {
-      res.json(resultado);
-    })
     .catch((error) => {
       console.error('Error:', error);
-      res.status(500).json({ error: error.message || "Error al registrar compra y envío" });
+      res.status(500).json({ error: "Error al procesar la compra" });
     });
 });
 
