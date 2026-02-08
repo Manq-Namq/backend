@@ -8,7 +8,6 @@ router.get('/', (req, res) => {
     SELECT 
       c.id_carrito,
       c.id_usuario,
-      c.estado,
       DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion,
       u.nombre as usuario_nombre,
       u.apellido as usuario_apellido
@@ -28,7 +27,7 @@ router.get('/', (req, res) => {
     });
 });
 
-// POST, Crear carrito
+// POST, Crear carrito (SIN dirección aquí)
 router.post('/', (req, res) => {
   const { id_usuario } = req.body;
   
@@ -48,6 +47,7 @@ router.post('/', (req, res) => {
       res.status(500).json({ error: "Error al crear carrito" });
     });
 });
+
 // PUT, Actualizar estado de carrito
 router.put('/:id', (req, res) => {
   const idCarrito = req.params.id;
@@ -69,4 +69,5 @@ router.put('/:id', (req, res) => {
       res.status(500).json({ error: "Error al actualizar carrito" });
     });
 });
+
 module.exports = router;

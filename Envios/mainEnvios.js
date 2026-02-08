@@ -1,22 +1,33 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../conexion'); 
+const db = require('../conexion');
 
-// GET - Obtener todos los envíos
+// GET - Obtener todos los envíos CON NOMBRE DE USUARIO
 router.get('/', function(req, res) {
-    const sql = "SELECT * FROM envios ORDER BY id_envio DESC";
+    const sql = `
+        SELECT 
+            e.id_envio,
+            e.id_usuario,
+            e.direccion,
+            e.codigo_postal,
+            DATE_FORMAT(e.fecha, '%d/%m/%Y %H:%i') as fecha,
+            e.estado,  /* <-- Asegúrate de incluir estado */
+            u.nombre as usuario_nombre,
+            u.apellido as usuario_apellido
+        FROM envios e
+        LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
+        ORDER BY e.id_envio DESC
+    `;
     
     db.query(sql)
-        .then(([rows]) => {
-            res.json(rows);
-        })
+        .then(([rows]) => res.json(rows))
         .catch((error) => {
             console.error(error);
             res.status(500).json({ error: "Error cargando envíos" });
         });
 });
 
-// POST - Crear envío
+// POST - Crear envío (AGREGAR ESTADO)
 router.post('/', function(req, res) {
     const { id_usuario, direccion, estado, ciudad, codigo_postal } = req.body;
     
@@ -25,11 +36,11 @@ router.post('/', function(req, res) {
     }
     
     const sql = `
-        INSERT INTO envios (id_usuario, direccion, estado, ciudad, codigo_postal, fecha)
-        VALUES (?, ?, ?, ?, ?, NOW())
+        INSERT INTO envios (id_usuario, direccion, codigo_postal, estado, fecha)
+        VALUES (?, ?, ?, ?, NOW())
     `;
 
-    db.query(sql, [id_usuario, direccion, estado, ciudad, codigo_postal])
+    db.query(sql, [id_usuario, direccion, codigo_postal || '', estado || 'procesando'])
         .then(([result]) => {
             res.json({ 
                 mensaje: "Envío creado", 
@@ -45,15 +56,15 @@ router.post('/', function(req, res) {
 // PUT - Editar envío
 router.put('/:id', function(req, res) {
     const { id } = req.params;
-    const { direccion, estado, ciudad, codigo_postal } = req.body;
+    const { direccion, codigo_postal, estado } = req.body;  /* <-- Incluir estado */
 
     const sql = `
         UPDATE envios 
-        SET direccion = ?, estado = ?, ciudad = ?, codigo_postal = ?
+        SET direccion = ?, codigo_postal = ?, estado = ?
         WHERE id_envio = ?
     `;
 
-    db.query(sql, [direccion, estado, ciudad, codigo_postal, id])
+    db.query(sql, [direccion, codigo_postal, estado || 'procesando', id])
         .then(() => {
             res.json({ mensaje: "Envío actualizado" });
         })

@@ -25,12 +25,43 @@ router.get('/', (req, res) => {
   db.query(sql)
     .then(([ventas]) => {
       console.log(`Ventas obtenidas: ${ventas.length} registros`);
-      console.log(ventas); // Para ver qué datos llegan
       res.json(ventas);
     })
     .catch((error) => {
       console.error('Error:', error);
       res.status(500).json({ error: "Error al obtener ventas" });
+    });
+});
+
+// POST - Crear venta (ESTA ES LA RUTA QUE FALTA)
+router.post('/', (req, res) => {
+  const { id_compra_productos, id_usuario } = req.body;
+  
+  console.log('Creando venta:', { id_compra_productos, id_usuario });
+  
+  if (!id_compra_productos || !id_usuario) {
+    return res.status(400).json({ error: "Faltan datos requeridos" });
+  }
+  
+  const sql = `
+    INSERT INTO ventas (id_compra_productos, id_usuario, fecha_venta, estado)
+    VALUES (?, ?, NOW(), 'completada')
+  `;
+  
+  db.query(sql, [id_compra_productos, id_usuario])
+    .then(([result]) => {
+      console.log('Venta creada ID:', result.insertId);
+      res.json({
+        id_venta: result.insertId,
+        mensaje: "Venta creada"
+      });
+    })
+    .catch((error) => {
+      console.error('Error al crear venta:', error);
+      res.status(500).json({ 
+        error: "Error al crear venta",
+        detalles: error.message
+      });
     });
 });
 
