@@ -16,7 +16,6 @@ router.get('/', middleware, (req, res) => {
     SELECT 
       c.id_carrito,
       c.id_usuario,
-      c.estado,
       DATE_FORMAT(c.fecha_creacion, '%d/%m/%Y %H:%i') as fecha_creacion,
       u.nombre as usuario_nombre,
       u.apellido as usuario_apellido
@@ -37,9 +36,9 @@ router.get('/', middleware, (req, res) => {
     });
 });
 
-// POST, Crear carrito
-router.post('/', middleware, (req, res) => {
-  const id_usuario = req.user.id_usuario; // Obtener del token de autenticación
+// POST, Crear carrito (SIN dirección aquí)
+router.post('/', (req, res) => {
+  const { id_usuario } = req.body;
   
   console.log('Creando carrito para usuario autenticado:', id_usuario);
   
@@ -57,6 +56,7 @@ router.post('/', middleware, (req, res) => {
       res.status(500).json({ error: "Error al crear carrito" });
     });
 });
+
 // PUT, Actualizar estado de carrito
 router.put('/:id', middleware, (req, res) => {
   const idCarrito = req.params.id;
@@ -91,4 +91,5 @@ router.put('/:id', middleware, (req, res) => {
       res.status(500).json({ error: "Error al actualizar carrito" });
     });
 });
+
 module.exports = router;

@@ -1,20 +1,34 @@
-// middleware.js
 const { verificarToken } = require('@damianegreco/hashpass');
 const { TOKEN_SECRET } = process.env;
 
 function middleware(req, res, next) {
   const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).send("Sin autorización - Token no proporcionado o formato inválido");
+  
+  if (!authHeader) {
+    return res.status(401).json({ 
+      error: 'Token no proporcionado',
+      message: 'Debes incluir el header Authorization' 
+    });
   }
-
-  const token = authHeader.replace('Bearer ', '');
-
+  
+  let token;
+  const parts = authHeader.split(' ');
+  
+  if (parts.length === 2 && parts[0] === 'Bearer') {
+    token = parts[1];
+  } else if (parts.length === 1) {
+    token = parts[0];
+  } else {
+    return res.status(401).json({ 
+      error: 'Formato de token inválido',
+      message: 'El formato debe ser: Bearer {token} o solo {token}' 
+    });
+  }
+  
   const verificacion = verificarToken(token, TOKEN_SECRET);
-
+  
   if (verificacion?.data) {
-    // Normalizar la estructura del usuario desde el token
+    // Cambia de req.usuario a req.user para ser consistente
     req.user = {
       id_usuario: verificacion.data.id,
       nombre: verificacion.data.nombre,
@@ -24,7 +38,10 @@ function middleware(req, res, next) {
     };
     next();
   } else {
-    res.status(401).send("Token inválido o expirado");
+    return res.status(401).json({ 
+      error: 'Token inválido o expirado',
+      message: 'Por favor, inicia sesión nuevamente' 
+    });
   }
 }
 

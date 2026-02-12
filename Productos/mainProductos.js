@@ -61,7 +61,7 @@ router.get("/imagen/:nombre", function(req, res, next){
 });
 
 // POST /productos  Crear producto con imagen (COMO EN TU EJEMPLO)
-router.post('/', function(req, res, next) {
+router.post('/', middleware, function(req, res, next) {
   console.log("Recibiendo solicitud POST /productos");
   
   if (!req.files || !req.files.imagen) {
@@ -72,7 +72,7 @@ router.post('/', function(req, res, next) {
   const imagen = req.files.imagen;
   console.log("Archivo recibido:", imagen.name);
   
-  // Validar extensión (IGUAL QUE EN TU EJEMPLO)
+  // Validar extensión 
   const extension = path.extname(imagen.name);
   
   if (extension !== ".jpg" && extension !== ".jpeg" && extension !== ".png") {
@@ -82,7 +82,7 @@ router.post('/', function(req, res, next) {
 
   const filepath = path.join(directorio, imagen.name);
 
-  // Mover imagen (IGUAL QUE EN TU EJEMPLO)
+  // Mover imagen 
   imagen.mv(filepath, function(error){ 
     if (error) {
       console.error(error);
@@ -117,7 +117,7 @@ router.post('/', function(req, res, next) {
 });
 
 // PUT actualizar producto
-router.put('/:id', function(req, res, next) {
+router.put('/:id', middleware, function(req, res, next) {
   const { id } = req.params;
   const { nombre, descripcion, precio, stock } = req.body;
   
@@ -171,7 +171,7 @@ router.put('/:id', function(req, res, next) {
 });
 
 // DELETE Eliminar producto por id
-router.delete('/:id', function(req, res, next) {
+router.delete('/:id', middleware, function(req, res, next) {
   const { id } = req.params;
   
   const sql = "DELETE FROM productos WHERE id_producto = ?";

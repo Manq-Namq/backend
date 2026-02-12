@@ -1,40 +1,9 @@
+// routes/mainCompras.js
 const express = require('express');
 const router = express.Router();
 const db = require('../conexion');
 
-// GET - TODAS las compras_productos
-router.get('/', (req, res) => {
-  const sql = `
-    SELECT 
-      cp.id_compra_productos,
-      cp.id_carrito,
-      cp.id_producto,
-      cp.cantidad,
-      cp.precio_unitario,
-      IFNULL(p.nombre, 'Producto no disponible') as producto_nombre,
-      IFNULL(u.nombre, 'Usuario') as usuario_nombre,
-      IFNULL(u.apellido, '') as usuario_apellido,
-      IFNULL(c.estado, 'sin estado') as estado_carrito,
-      (cp.cantidad * cp.precio_unitario) as total
-    FROM compra_productos cp
-    LEFT JOIN productos p ON cp.id_producto = p.id_producto
-    LEFT JOIN carritos c ON cp.id_carrito = c.id_carrito
-    LEFT JOIN usuarios u ON c.id_usuario = u.id_usuario
-    ORDER BY cp.id_compra_productos DESC
-  `;
-  
-  db.query(sql)
-    .then(([compras]) => {
-      console.log(` Compras obtenidas: ${compras.length} registros`);
-      res.json(compras);
-    })
-    .catch((error) => {
-      console.error('Error:', error);
-      res.status(500).json({ error: "Error al obtener compras" });
-    });
-});
-
-// POST - Registrar compra
+// POST - Registrar compra (SIMPLE)
 router.post('/', (req, res) => {
   const { id_carrito, id_producto, cantidad, precio_unitario } = req.body;
   
@@ -52,6 +21,37 @@ router.post('/', (req, res) => {
     .catch((error) => {
       console.error('Error:', error);
       res.status(500).json({ error: "Error al registrar compra" });
+    });
+});
+
+// GET - Obtener todas las compras
+router.get('/', (req, res) => {
+  const sql = `
+    SELECT 
+      cp.id_compra_productos,
+      cp.id_carrito,
+      cp.id_producto,
+      cp.cantidad,
+      cp.precio_unitario,
+      p.nombre as producto_nombre,
+      c.id_usuario,
+      u.nombre as usuario_nombre,
+      u.apellido as usuario_apellido
+    FROM compra_productos cp
+    LEFT JOIN productos p ON cp.id_producto = p.id_producto
+    LEFT JOIN carritos c ON cp.id_carrito = c.id_carrito
+    LEFT JOIN usuarios u ON c.id_usuario = u.id_usuario
+    ORDER BY cp.id_compra_productos DESC
+  `;
+  
+  db.query(sql)
+    .then(([compras]) => {
+      console.log(`Compras obtenidas: ${compras.length} registros`);
+      res.json(compras);
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+      res.status(500).json({ error: "Error al obtener compras" });
     });
 });
 
