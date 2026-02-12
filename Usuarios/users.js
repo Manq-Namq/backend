@@ -4,7 +4,7 @@ const middleware = require('../middleware');
 
 // GET /usuarios - Obtener todos los usuarios (para admin)
 router.get('/', function(req, res, next) {
-  const sql = "SELECT id_usuario, nombre, apellido, email, telefono, direccion, fecha_registro, id_rol FROM usuarios";
+  const sql = "SELECT id_usuario, nombre, apellido, email, telefono, direccion, ciudad, estado, codigo_postal, fecha_registro, id_rol FROM usuarios";
   
   db.query(sql)
     .then(([usuarios]) => {
@@ -27,7 +27,7 @@ router.get('/:id', middleware, function(req, res, next) {
     return res.status(403).json({ error: "No tienes permiso para acceder a este perfil" });
   }
   
-  const sql = "SELECT id_usuario, nombre, apellido, email, telefono, direccion, fecha_registro, id_rol FROM usuarios WHERE id_usuario = ?";
+  const sql = "SELECT id_usuario, nombre, apellido, email, telefono, direccion, ciudad, estado, codigo_postal, fecha_registro, id_rol FROM usuarios WHERE id_usuario = ?";
   
   db.query(sql, [id])
     .then(([usuarios]) => {
@@ -54,16 +54,58 @@ router.put('/:id', middleware, function(req, res, next) {
     return res.status(403).json({ error: "No tienes permiso para actualizar este perfil" });
   }
   
-  const { nombre, apellido, email, telefono, direccion } = req.body;
+  const { nombre, apellido, email, telefono, direccion, ciudad, estado, codigo_postal } = req.body;
   
-  const sql = "UPDATE usuarios SET nombre = ?, apellido = ?, email = ?, telefono = ?, direccion = ? WHERE id_usuario = ?";
+  // Construir SQL dinámicamente solo con campos proporcionados
+  const updates = [];
+  const values = [];
   
-  db.query(sql, [nombre, apellido, email, telefono, direccion, id])
+  if (nombre !== undefined) {
+    updates.push('nombre = ?');
+    values.push(nombre);
+  }
+  if (apellido !== undefined) {
+    updates.push('apellido = ?');
+    values.push(apellido);
+  }
+  if (email !== undefined) {
+    updates.push('email = ?');
+    values.push(email);
+  }
+  if (telefono !== undefined) {
+    updates.push('telefono = ?');
+    values.push(telefono);
+  }
+  if (direccion !== undefined) {
+    updates.push('direccion = ?');
+    values.push(direccion);
+  }
+  if (ciudad !== undefined) {
+    updates.push('ciudad = ?');
+    values.push(ciudad);
+  }
+  if (estado !== undefined) {
+    updates.push('estado = ?');
+    values.push(estado);
+  }
+  if (codigo_postal !== undefined) {
+    updates.push('codigo_postal = ?');
+    values.push(codigo_postal);
+  }
+  
+  if (updates.length === 0) {
+    return res.status(400).json({ error: "No se proporcionaron campos para actualizar" });
+  }
+  
+  const sql = `UPDATE usuarios SET ${updates.join(', ')} WHERE id_usuario = ?`;
+  values.push(id);
+  
+  db.query(sql, values)
     .then(() => {
       res.json({ mensaje: "Usuario actualizado correctamente" });
     })
     .catch((error) => {
-      console.error(error);
+      console.error('Error en PUT usuarios:', error);
       res.status(500).json({ error: "Error del servidor" });
     });
 });

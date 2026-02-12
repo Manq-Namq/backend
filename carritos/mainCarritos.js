@@ -1,9 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../conexion');
+const middleware = require('../middleware');
 
 // GET, todos los carritos
-router.get('/', (req, res) => {
+router.get('/', middleware, (req, res) => {
+  const userId = req.user.id_usuario;
+  const userRole = req.user.id_rol;
+  
+  // Si es admin, ver todos los carritos. Si no, solo los suyos
+  const whereClause = userRole === 1 ? '' : 'WHERE c.id_usuario = ?';
+  const params = userRole === 1 ? [] : [userId];
+  
   const sql = `
     SELECT 
       c.id_carrito,
@@ -14,10 +22,11 @@ router.get('/', (req, res) => {
       u.apellido as usuario_apellido
     FROM carritos c
     LEFT JOIN usuarios u ON c.id_usuario = u.id_usuario
+    ${whereClause}
     ORDER BY c.fecha_creacion DESC
   `;
   
-  db.query(sql)
+  db.query(sql, params)
     .then(([carritos]) => {
       console.log(`Carritos obtenidos: ${carritos.length} registros`);
       res.json(carritos);
@@ -29,14 +38,14 @@ router.get('/', (req, res) => {
 });
 
 // POST, Crear carrito
-router.post('/', (req, res) => {
-  const { id_usuario } = req.body;
+router.post('/', middleware, (req, res) => {
+  const id_usuario = req.user.id_usuario; // Obtener del token de autenticación
   
-  console.log('Creando carrito para usuario:', id_usuario);
+  console.log('Creando carrito para usuario autenticado:', id_usuario);
   
   const sql = `INSERT INTO carritos (id_usuario) VALUES (?)`;
   
-  db.query(sql, [id_usuario || 1])
+  db.query(sql, [id_usuario])
     .then(([result]) => {
       res.json({
         id_carrito: result.insertId,
@@ -49,15 +58,28 @@ router.post('/', (req, res) => {
     });
 });
 // PUT, Actualizar estado de carrito
-router.put('/:id', (req, res) => {
+router.put('/:id', middleware, (req, res) => {
   const idCarrito = req.params.id;
   const { estado } = req.body;
+  const userId = req.user.id_usuario;
+  const userRole = req.user.id_rol;
   
   console.log('Actualizando carrito', idCarrito, 'a estado:', estado);
   
-  const sql = `UPDATE carritos SET estado = ? WHERE id_carrito = ?`;
+  // Verificar que el carrito pertenece al usuario o es admin
+  const checkSql = userRole === 1 ? 'SELECT 1' : 'SELECT 1 FROM carritos WHERE id_carrito = ? AND id_usuario = ?';
+  const checkParams = userRole === 1 ? [] : [idCarrito, userId];
   
-  db.query(sql, [estado, idCarrito])
+  db.query(checkSql, checkParams)
+    .then(([checkResult]) => {
+      if (checkResult.length === 0) {
+        return res.status(403).json({ error: "No tienes permiso para modificar este carrito" });
+      }
+      
+      const sql = `UPDATE carritos SET estado = ? WHERE id_carrito = ?`;
+      
+      return db.query(sql, [estado, idCarrito]);
+    })
     .then(() => {
       res.json({ 
         mensaje: 'Estado del carrito actualizado',

@@ -75,9 +75,89 @@ const crearTablaComentarios = async () => {
   }
 };
 
+// Agregar columna id_carrito a envios si no existe
+const actualizarTablaEnvios = async () => {
+  try {
+    console.log('Verificando tabla envios...');
+    // Verificar si la columna existe
+    const [columns] = await db.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_NAME = 'envios' AND COLUMN_NAME = 'id_carrito'
+    `);
+    
+    if (columns.length === 0) {
+      console.log('Agregando columna id_carrito a envios...');
+      // Agregar la columna
+      await db.query(`ALTER TABLE envios ADD COLUMN id_carrito INT`);
+      await db.query(`ALTER TABLE envios ADD CONSTRAINT fk_envios_carrito FOREIGN KEY (id_carrito) REFERENCES carritos(id_carrito) ON DELETE SET NULL`);
+      console.log('Columna id_carrito agregada a envios');
+    } else {
+      console.log('Columna id_carrito ya existe en envios');
+    }
+  } catch (error) {
+    console.error('Error al actualizar tabla envios:', error);
+  }
+};
+
+// Agregar columnas de dirección a usuarios si no existen
+const actualizarTablaUsuarios = async () => {
+  try {
+    console.log('Verificando tabla usuarios...');
+    const columnas = ['ciudad', 'estado', 'codigo_postal'];
+    
+    for (const columna of columnas) {
+      const [columns] = await db.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME = 'usuarios' AND COLUMN_NAME = ?
+      `, [columna]);
+      
+      if (columns.length === 0) {
+        console.log(`Agregando columna ${columna} a usuarios...`);
+        await db.query(`ALTER TABLE usuarios ADD COLUMN ${columna} VARCHAR(255)`);
+        console.log(`Columna ${columna} agregada a usuarios`);
+      } else {
+        console.log(`Columna ${columna} ya existe en usuarios`);
+      }
+    }
+  } catch (error) {
+    console.error('Error al actualizar tabla usuarios:', error);
+  }
+};
+
+// Agregar columnas de datos de usuario a envios si no existen
+const actualizarTablaEnviosDatosUsuario = async () => {
+  try {
+    console.log('Verificando tabla envios para datos de usuario...');
+    const columnas = ['nombre_usuario', 'apellido_usuario', 'email_usuario', 'telefono_usuario'];
+    
+    for (const columna of columnas) {
+      const [columns] = await db.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME = 'envios' AND COLUMN_NAME = ?
+      `, [columna]);
+      
+      if (columns.length === 0) {
+        console.log(`Agregando columna ${columna} a envios...`);
+        await db.query(`ALTER TABLE envios ADD COLUMN ${columna} VARCHAR(255)`);
+        console.log(`Columna ${columna} agregada a envios`);
+      } else {
+        console.log(`Columna ${columna} ya existe en envios`);
+      }
+    }
+  } catch (error) {
+    console.error('Error al actualizar tabla envios con datos usuario:', error);
+  }
+};
+
 // Inicializar base de datos y luego iniciar servidor
 const iniciarServidor = async () => {
   await crearTablaComentarios();
+  await actualizarTablaEnvios();
+  await actualizarTablaUsuarios();
+  await actualizarTablaEnviosDatosUsuario();
   
   app.listen(PORT, function(error) {
     if (error){

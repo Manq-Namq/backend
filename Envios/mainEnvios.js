@@ -5,7 +5,19 @@ const db = require('../conexion');
 // GET - Obtener todos los envíos
 router.get('/', async (req, res) => {
     try {
-        const [rows] = await db.query("SELECT * FROM envios ORDER BY id_envio DESC");
+        const [rows] = await db.query(`
+            SELECT 
+                e.*,
+                COALESCE(e.nombre_usuario, u.nombre) as nombre,
+                COALESCE(e.apellido_usuario, u.apellido) as apellido,
+                COALESCE(e.email_usuario, u.email) as email,
+                COALESCE(e.telefono_usuario, u.telefono) as telefono,
+                c.estado as estado_carrito
+            FROM envios e
+            LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
+            LEFT JOIN carritos c ON e.id_carrito = c.id_carrito
+            ORDER BY e.id_envio DESC
+        `);
         res.json(rows);
     } catch (error) {
         console.error(error);
@@ -15,12 +27,21 @@ router.get('/', async (req, res) => {
 
 // POST - Crear envío
 router.post('/', async (req, res) => {
-    const { id_usuario, direccion, estado, ciudad, codigo_postal } = req.body;
+    const { id_usuario, direccion, estado, ciudad, codigo_postal, id_carrito } = req.body;
 
     try {
+        // Obtener datos del usuario
+        const [usuarios] = await db.query('SELECT nombre, apellido, email, telefono FROM usuarios WHERE id_usuario = ?', [id_usuario]);
+        
+        if (usuarios.length === 0) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+        
+        const usuario = usuarios[0];
+        
         const sql = `
-            INSERT INTO envios (id_usuario, direccion, estado, ciudad, codigo_postal, fecha)
-            VALUES (?, ?, ?, ?, ?, NOW())
+            INSERT INTO envios (id_usuario, direccion, estado, ciudad, codigo_postal, id_carrito, nombre_usuario, apellido_usuario, email_usuario, telefono_usuario, fecha)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
 
         const [result] = await db.query(sql, [
@@ -28,7 +49,12 @@ router.post('/', async (req, res) => {
             direccion,
             estado,
             ciudad,
-            codigo_postal
+            codigo_postal,
+            id_carrito,
+            usuario.nombre,
+            usuario.apellido,
+            usuario.email,
+            usuario.telefono
         ]);
 
         res.json({ mensaje: "Envío creado", id_envio: result.insertId });
