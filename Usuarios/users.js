@@ -20,7 +20,7 @@ router.get('/', middleware, function(req, res, next) {
 router.get('/:id', middleware, function(req, res, next) {
   const { id } = req.params;
   
-  const sql = "SELECT id_usuario, nombre, apellido, email, telefono, direccion, fecha_registro, id_rol FROM usuarios WHERE id_usuario = ?";
+  const sql = "SELECT id_usuario, nombre, apellido, email, telefono, direccion, ciudad, estado, codigo_postal, fecha_registro, id_rol FROM usuarios WHERE id_usuario = ?";
   
   db.query(sql, [id])
     .then(([usuarios]) => {
@@ -61,7 +61,7 @@ router.put('/:id', function(req, res, next) {
       }
     })
     .catch((error) => {
-      console.error(error);
+      console.error('Error en PUT usuarios:', error);
       res.status(500).json({ error: "Error del servidor" });
     });
 });
