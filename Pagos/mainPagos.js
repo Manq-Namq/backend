@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const db = require('../conexion');
 
-// POST - Crear pago con dirección
+// POST - Crear pago CON DIRECCIÓN
 router.post('/', (req, res) => {
-  const { id_carrito, monto, metodo, direccion } = req.body;
+  const { id_carrito, monto, metodo, direccion } = req.body; 
   
-  const sql = `INSERT INTO pagos (id_carrito, monto, fecha, metodo, estado, direccion_envio) VALUES (?, ?, NOW(), ?, 'pendiente', ?)`;
+  console.log('Creando pago con dirección:', { id_carrito, monto, metodo, direccion });
+  
+  const sql = `INSERT INTO pagos (id_carrito, monto, fecha, metodo, estado, direccion) VALUES (?, ?, NOW(), ?, 'pendiente', ?)`;
   
   db.query(sql, [id_carrito, monto, metodo, direccion || ''])
     .then(([result]) => {
@@ -18,16 +20,22 @@ router.post('/', (req, res) => {
     });
 });
 
-// GET - TODOS los pagos
+// GET - TODOS los pagos CON DIRECCIÓN
 router.get('/', (req, res) => {
   const sql = `
-    SELECT p.id_pago, p.monto, DATE_FORMAT(p.fecha, '%d/%m/%Y %H:%i') as fecha,
-           p.metodo, p.estado, p.id_carrito, p.direccion_envio,
-           COALESCE(u.nombre, 'Usuario') as usuario_nombre,
-           COALESCE(u.apellido, '') as usuario_apellido
+    SELECT 
+      p.id_pago, p.monto, DATE_FORMAT(p.fecha, '%d/%m/%Y %H:%i') as fecha,
+      p.metodo, p.estado, p.id_carrito, p.direccion,
+      COALESCE(u.nombre, 'Usuario') as usuario_nombre,
+      COALESCE(u.apellido, '') as usuario_apellido,
+      GROUP_CONCAT(DISTINCT pr.nombre SEPARATOR ', ') as productos_nombres,
+      COUNT(DISTINCT cp.id_producto) as cantidad_productos
     FROM pagos p
     LEFT JOIN carritos c ON p.id_carrito = c.id_carrito
     LEFT JOIN usuarios u ON c.id_usuario = u.id_usuario
+    LEFT JOIN compra_productos cp ON p.id_carrito = cp.id_carrito
+    LEFT JOIN productos pr ON cp.id_producto = pr.id_producto
+    GROUP BY p.id_pago
     ORDER BY p.fecha DESC
   `;
   
@@ -39,113 +47,162 @@ router.get('/', (req, res) => {
     });
 });
 
-// PUT - Actualizar estado de pago (versión más simple)
+// PUT - Actualizar estado de pago (MODIFICADO para incluir nombre_usuario)
 router.put('/:id', (req, res) => {
   const idPago = req.params.id;
   const { estado } = req.body;
   
-  console.log('Actualizando pago', idPago, 'a:', estado);
+  // Primero obtener el estado actual y la dirección del pago
+  const getPagoSql = `SELECT estado, direccion, id_carrito FROM pagos WHERE id_pago = ?`;
   
-  // 1. Actualizar estado del pago
-  db.query(`UPDATE pagos SET estado = ? WHERE id_pago = ?`, [estado, idPago])
-    .then(() => {
-      // Si se aprueba
-      if (estado === 'aprobado') {
-        // Obtener datos del pago
-        return db.query(`SELECT id_carrito, direccion_envio FROM pagos WHERE id_pago = ?`, [idPago])
-          .then(([pagoData]) => {
-            if (pagoData.length === 0) {
-              return res.status(404).json({ error: "Pago no encontrado" });
-            }
-            
-            const idCarrito = pagoData[0].id_carrito;
-            const direccionEnvio = pagoData[0].direccion_envio || '';
-            
-            // Obtener productos del carrito para actualizar stock
-            return db.query(`SELECT id_producto, cantidad FROM compra_productos WHERE id_carrito = ?`, [idCarrito])
-              .then(([productosData]) => {
-                // Actualizar stock de cada producto
-                const stockPromises = productosData.map(producto => {
-                  return db.query(`UPDATE productos SET stock = stock - ? WHERE id_producto = ?`, 
-                    [producto.cantidad, producto.id_producto]);
+  db.query(getPagoSql, [idPago])
+    .then(([pagoData]) => {
+      if (pagoData.length === 0) {
+        return res.status(404).json({ error: "Pago no encontrado" });
+      }
+      
+      const estadoActual = pagoData[0].estado;
+      const direccionPago = pagoData[0].direccion;
+      const idCarrito = pagoData[0].id_carrito;
+      
+      if (estado === estadoActual) {
+        return res.json({ mensaje: 'El pago ya tiene este estado' });
+      }
+      
+      // Actualizar estado del pago
+      const updatePagoSql = `UPDATE pagos SET estado = ? WHERE id_pago = ?`;
+      
+      return db.query(updatePagoSql, [estado, idPago])
+        .then(() => {
+          // Función para manejar envíos (MODIFICADA)
+          const manejarEnvios = (accion) => {
+            if (accion === 'crear') {
+              // Obtener el usuario asociado al carrito con su nombre COMPLETO
+              const getUsuarioSql = `
+                SELECT c.id_usuario, u.nombre, u.apellido 
+                FROM carritos c 
+                JOIN usuarios u ON c.id_usuario = u.id_usuario 
+                WHERE c.id_carrito = ?
+              `;
+              
+              return db.query(getUsuarioSql, [idCarrito])
+                .then(([usuarioData]) => {
+                  if (usuarioData.length === 0) {
+                    return Promise.resolve();
+                  }
+                  
+                  const idUsuario = usuarioData[0].id_usuario;
+                  const nombreUsuario = usuarioData[0].nombre; // Nombre real del usuario
+                  const apellidoUsuario = usuarioData[0].apellido;
+                  const nombreCompleto = `${nombreUsuario} ${apellidoUsuario}`.trim();
+                  
+                  // Crear envío con nombre_usuario REAL
+                  const crearEnvioSql = `
+                    INSERT INTO envios 
+                    (id_usuario, direccion, estado, fecha, nombre_usuario) 
+                    VALUES (?, ?, 'procesando', NOW(), ?)
+                  `;
+                  
+                  return db.query(crearEnvioSql, [
+                    idUsuario, 
+                    direccionPago || 'Dirección no especificada',
+                    nombreCompleto  // <-- Nombre real del usuario
+                  ]);
                 });
-                return Promise.all(stockPromises);
-              })
+            }
+            return Promise.resolve();
+          };
+          
+          // Función para actualizar stock
+          const actualizarStock = (operacion) => {
+            return db.query(`
+              UPDATE productos p
+              JOIN compra_productos cp ON p.id_producto = cp.id_producto
+              SET p.stock = p.stock ${operacion} cp.cantidad
+              WHERE cp.id_carrito = ?
+            `, [idCarrito]);
+          };
+          
+          // CASO 1: Aprobando un pago
+          if (estado === 'aprobado' && (estadoActual === 'pendiente' || estadoActual === 'rechazado')) {
+            return actualizarStock('-')
               .then(() => {
-                console.log('Stock actualizado');
-                
-                // Crear ventas
+                // Crear venta
                 return db.query(`
                   INSERT INTO ventas (id_compra_productos, id_usuario, fecha_venta, estado) 
                   SELECT cp.id_compra_productos, c.id_usuario, NOW(), 'completada'
                   FROM compra_productos cp
                   JOIN carritos c ON cp.id_carrito = c.id_carrito
                   WHERE cp.id_carrito = ?
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ventas v WHERE v.id_compra_productos = cp.id_compra_productos
+                  )
                 `, [idCarrito]);
               })
-              .then(([ventaResult]) => {
-                console.log('Ventas creadas:', ventaResult.affectedRows);
-                
-                // Actualizar estado del carrito
-                return db.query(`UPDATE carritos SET estado = 'completado' WHERE id_carrito = ?`, [idCarrito]);
-              })
+              .then(() => manejarEnvios('crear'))
               .then(() => {
-                console.log('Carrito actualizado');
-                
-                // Obtener usuario para crear envío
-                return db.query(`SELECT id_usuario FROM carritos WHERE id_carrito = ?`, [idCarrito]);
-              })
-              .then(([usuarioData]) => {
-                if (usuarioData.length > 0) {
-                  const idUsuario = usuarioData[0].id_usuario;
-                  
-                  // Crear envío
-                  return db.query(`INSERT INTO envios (id_usuario, direccion, estado, fecha) VALUES (?, ?, 'procesando', NOW())`, 
-                    [idUsuario, direccionEnvio]);
-                }
-                return Promise.resolve();
-              })
-              .then(() => {
-                console.log('Envío creado');
-                res.json({ mensaje: 'Pago aprobado. Stock, venta y envío procesados.' });
+                res.json({ mensaje: 'Pago aprobado, stock actualizado, venta y envío creados' });
               });
-          });
-      }
-      
-      // Si se rechaza o pone pendiente
-      else if (estado === 'rechazado' || estado === 'pendiente') {
-        return db.query(`SELECT id_carrito FROM pagos WHERE id_pago = ?`, [idPago])
-          .then(([pagoData]) => {
-            if (pagoData.length > 0) {
-              const idCarrito = pagoData[0].id_carrito;
-              
-              // Eliminar ventas asociadas
-              return db.query(`
-                DELETE FROM ventas 
-                WHERE id_compra_productos IN (
-                  SELECT id_compra_productos FROM compra_productos WHERE id_carrito = ?
-                )
-              `, [idCarrito])
-                .then(() => {
-                  res.json({ mensaje: `Pago ${estado}. Ventas eliminadas.` });
-                });
-            }
-            res.json({ mensaje: `Pago ${estado}` });
-          });
-      }
-      
-      // Para otros estados
-      else {
-        res.json({ mensaje: 'Estado actualizado' });
-      }
+          }
+          
+          // CASO 2: Rechazando un pago aprobado
+          if (estado === 'rechazado' && estadoActual === 'aprobado') {
+            return actualizarStock('+')
+              .then(() => {
+                // Eliminar ventas
+                return db.query(`
+                  DELETE FROM ventas 
+                  WHERE id_compra_productos IN (
+                    SELECT cp.id_compra_productos 
+                    FROM compra_productos cp
+                    WHERE cp.id_carrito = ?
+                  )
+                `, [idCarrito]);
+              })
+              .then(() => {
+                res.json({ mensaje: 'Pago rechazado, stock devuelto y ventas eliminadas' });
+              });
+          }
+          
+          // CASOS RESTANTES
+          if (estado === 'pendiente' && estadoActual === 'aprobado') {
+            return actualizarStock('+')
+              .then(() => {
+                return db.query(`
+                  DELETE FROM ventas 
+                  WHERE id_compra_productos IN (
+                    SELECT cp.id_compra_productos 
+                    FROM compra_productos cp
+                    WHERE cp.id_carrito = ?
+                  )
+                `, [idCarrito]);
+              })
+              .then(() => {
+                res.json({ mensaje: 'Pago pendiente, stock devuelto y ventas eliminadas' });
+              });
+          }
+          
+          if ((estado === 'pendiente' && estadoActual === 'rechazado') || 
+              (estado === 'rechazado' && estadoActual === 'pendiente')) {
+            return db.query(`
+              DELETE FROM ventas 
+              WHERE id_compra_productos IN (
+                SELECT cp.id_compra_productos 
+                FROM compra_productos cp
+                WHERE cp.id_carrito = ?
+              )
+            `, [idCarrito])
+              .then(() => {
+                res.json({ mensaje: `Pago ${estado}. Ventas eliminadas si existían.` });
+              });
+          }
+          
+          res.json({ mensaje: 'Estado actualizado' });
+        });
     })
     .catch((error) => {
-      console.error('Error completo:', error);
-      res.status(500).json({ 
-        error: "Error al actualizar pago",
-        detalles: error.message,
-        sqlMessage: error.sqlMessage || 'Sin detalles SQL'
-      });
+      console.error('Error:', error);
+      res.status(500).json({ error: "Error al actualizar pago" });
     });
 });
 
