@@ -72,7 +72,7 @@ router.post('/register', function(req, res, next) {
       const usuario = newUsers[0];
       
       // Generar token
-      const token = generarToken(TOKEN_SECRET, 4, {
+      const token = generarToken(TOKEN_SECRET, 24, {
         id: usuario.id_usuario,
         nombre: usuario.nombre,
         apellido: usuario.apellido,
@@ -85,6 +85,7 @@ router.post('/register', function(req, res, next) {
         usuario: usuario,
         mensaje: 'Usuario registrado exitosamente'
       });
+      
     })
     .catch((error) => {
       console.error(error);
